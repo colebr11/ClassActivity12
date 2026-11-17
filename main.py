@@ -10,6 +10,12 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 
+class Robot(BaseModel):
+    name: str
+    price: float
+    description: str
+    imageUrl: str
+
 # load variables from .env
 load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -21,6 +27,17 @@ db = client[MONGODB_DB]
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+collection = db["robots"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ======== CONFIG FOR JWT ========
@@ -154,3 +171,18 @@ def read_protected_data(current_user: str = Depends(get_current_user)):
 @app.get("/hello")
 def hello():
     return {"message": "Hello from FastAPI"}
+
+# ======== 5) Robot Routes ========
+
+@app.get("/robots")
+def get_robots():
+    robots = list(collection.find())
+    for r in robots:
+        r["_id"] = str(r["_id"])
+    return robots
+
+
+@app.post("/robots")
+def add_robot(robot: Robot, current_user: str = Depends(get_current_user)):
+    collection.insert_one(robot.model_dump())
+    return {"message": "Robot added successfully"}
